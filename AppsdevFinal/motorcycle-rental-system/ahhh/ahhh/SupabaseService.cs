@@ -44,6 +44,8 @@ namespace ahhh
                         id            INTEGER PRIMARY KEY AUTOINCREMENT,
                         motorcycle_id INTEGER REFERENCES motorcycles(id),
                         username      TEXT NOT NULL,
+                        start_date    TEXT,
+                        end_date      TEXT,
                         rented_at     TEXT DEFAULT (datetime('now')),
                         returned_at   TEXT,
                         status        TEXT DEFAULT 'active'
@@ -53,6 +55,29 @@ namespace ahhh
                 foreach (var sql in statements)
                 {
                     using (var cmd = new SqliteCommand(sql, conn))
+                        cmd.ExecuteNonQuery();
+                }
+
+                MigrateRentalsTable(conn);
+            }
+        }
+
+        // Adds start_date / end_date to existing databases that predate this column.
+        private static void MigrateRentalsTable(SqliteConnection conn)
+        {
+            var existing = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (var cmd = new SqliteCommand("PRAGMA table_info(rentals)", conn))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                    existing.Add(reader.GetString(1));
+            }
+
+            foreach (var col in new[] { "start_date", "end_date" })
+            {
+                if (!existing.Contains(col))
+                {
+                    using (var cmd = new SqliteCommand($"ALTER TABLE rentals ADD COLUMN {col} TEXT", conn))
                         cmd.ExecuteNonQuery();
                 }
             }
@@ -188,16 +213,19 @@ namespace ahhh
             return list;
         }
 
-        public static async Task<bool> CreateRentalAsync(int motorcycleId, string username)
+        public static async Task<bool> CreateRentalAsync(int motorcycleId, string username, DateTime startDate, DateTime endDate)
         {
             using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
                 using (var cmd = new SqliteCommand(
-                    "INSERT INTO rentals (motorcycle_id, username, status) VALUES (@mid, @u, 'active')", conn))
+                    "INSERT INTO rentals (motorcycle_id, username, start_date, end_date, status) " +
+                    "VALUES (@mid, @u, @sd, @ed, 'active')", conn))
                 {
                     cmd.Parameters.AddWithValue("@mid", motorcycleId);
                     cmd.Parameters.AddWithValue("@u", username);
+                    cmd.Parameters.AddWithValue("@sd", startDate.ToString("yyyy-MM-dd"));
+                    cmd.Parameters.AddWithValue("@ed", endDate.ToString("yyyy-MM-dd"));
                     if (await cmd.ExecuteNonQueryAsync() <= 0) return false;
                 }
                 return await SetAvailabilityAsync(conn, motorcycleId, false);

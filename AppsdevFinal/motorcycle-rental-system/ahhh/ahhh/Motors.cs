@@ -110,12 +110,16 @@ namespace ahhh
         private void ShowRentalsView()
         {
             var motorNames = BuildMotorNameLookup();
+            var motorRates = BuildMotorRateLookup();
 
             var table = new DataTable();
             table.Columns.Add("rental_id",   typeof(int));
             table.Columns.Add("motor_id",    typeof(int));
             table.Columns.Add("Motorcycle",  typeof(string));
-            table.Columns.Add("Rented At",   typeof(string));
+            table.Columns.Add("Start Date",  typeof(string));
+            table.Columns.Add("End Date",    typeof(string));
+            table.Columns.Add("Days",        typeof(string));
+            table.Columns.Add("Total (₱)",   typeof(string));
             table.Columns.Add("Returned At", typeof(string));
             table.Columns.Add("Status",      typeof(string));
 
@@ -125,12 +129,30 @@ namespace ahhh
 
                 int motorId = GetInt(r, "motorcycle_id");
                 motorNames.TryGetValue(motorId, out string motorName);
+                motorRates.TryGetValue(motorId, out decimal rate);
+
+                string startStr = GetString(r, "start_date");
+                string endStr   = GetString(r, "end_date");
+
+                string daysStr  = "";
+                string totalStr = "";
+                if (DateTime.TryParse(startStr, out DateTime start) &&
+                    DateTime.TryParse(endStr,   out DateTime end))
+                {
+                    int days = (end.Date - start.Date).Days + 1;
+                    daysStr  = days.ToString();
+                    if (rate > 0)
+                        totalStr = $"₱{days * rate:0.##}";
+                }
 
                 table.Rows.Add(
                     GetInt(r, "id"),
                     motorId,
                     motorName ?? "Unknown",
-                    FormatDate(GetString(r, "rented_at")),
+                    startStr,
+                    endStr,
+                    daysStr,
+                    totalStr,
                     FormatDate(GetString(r, "returned_at")),
                     GetString(r, "status")
                 );
@@ -169,30 +191,38 @@ namespace ahhh
                 return;
             }
 
-            if (MessageBox.Show($"Rent \"{name}\"?", "Confirm Rental",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            string rateStr = row.Cells["Daily Rate (₱)"].Value?.ToString()?.Replace("₱", "").Trim() ?? "0";
+            decimal.TryParse(rateStr, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal dailyRate);
 
-            btnRent.Enabled = false;
-            try
+            using (var dateForm = new RentalDateForm(name, dailyRate))
             {
-                bool ok = await SupabaseService.CreateRentalAsync(motorId, Session.Username);
-                if (ok)
+                if (dateForm.ShowDialog(this) != DialogResult.OK) return;
+
+                btnRent.Enabled = false;
+                try
                 {
-                    MessageBox.Show($"Successfully rented \"{name}\"!", "Rented",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    await LoadDataAsync();
+                    bool ok = await SupabaseService.CreateRentalAsync(
+                        motorId, Session.Username, dateForm.StartDate, dateForm.EndDate);
+                    if (ok)
+                    {
+                        MessageBox.Show(
+                            $"Successfully rented \"{name}\" for {dateForm.TotalDays} day(s)!", "Rented",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        await LoadDataAsync();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to create rental. Please try again.", "Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    MessageBox.Show("Failed to create rental. Please try again.", "Error",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
+                finally { btnRent.Enabled = true; }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally { btnRent.Enabled = true; }
         }
 
         private async void btnReturn_Click(object sender, EventArgs e)
@@ -338,6 +368,19 @@ namespace ahhh
             var lookup = new Dictionary<int, string>();
             foreach (var m in _motorcycles)
                 lookup[GetInt(m, "id")] = $"{GetString(m, "name")} {GetString(m, "model")}".Trim();
+            return lookup;
+        }
+
+        private Dictionary<int, decimal> BuildMotorRateLookup()
+        {
+            var lookup = new Dictionary<int, decimal>();
+            foreach (var m in _motorcycles)
+            {
+                if (decimal.TryParse(GetString(m, "daily_rate"),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out decimal rate))
+                    lookup[GetInt(m, "id")] = rate;
+            }
             return lookup;
         }
 
