@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Data.SQLite;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 
 namespace ahhh
 {
@@ -12,7 +12,7 @@ namespace ahhh
         private static readonly string DbPath =
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "rental.db");
 
-        private static string ConnStr => $"Data Source={DbPath};Version=3;";
+        private static string ConnStr => $"Data Source={DbPath}";
 
         static SupabaseService()
         {
@@ -21,7 +21,7 @@ namespace ahhh
 
         private static void EnsureDbCreated()
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 conn.Open();
                 var statements = new[]
@@ -52,7 +52,7 @@ namespace ahhh
 
                 foreach (var sql in statements)
                 {
-                    using (var cmd = new SQLiteCommand(sql, conn))
+                    using (var cmd = new SqliteCommand(sql, conn))
                         cmd.ExecuteNonQuery();
                 }
             }
@@ -62,10 +62,10 @@ namespace ahhh
 
         public static async Task<bool> UsernameExistsAsync(string username)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand(
+                using (var cmd = new SqliteCommand(
                     "SELECT COUNT(*) FROM users WHERE username = @u", conn))
                 {
                     cmd.Parameters.AddWithValue("@u", username);
@@ -77,10 +77,10 @@ namespace ahhh
 
         public static async Task<bool> RegisterUserAsync(string username, string password)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand(
+                using (var cmd = new SqliteCommand(
                     "INSERT INTO users (username, password) VALUES (@u, @p)", conn))
                 {
                     cmd.Parameters.AddWithValue("@u", username);
@@ -92,10 +92,10 @@ namespace ahhh
 
         public static async Task<bool> LoginAsync(string username, string password)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand(
+                using (var cmd = new SqliteCommand(
                     "SELECT COUNT(*) FROM users WHERE username = @u AND password = @p", conn))
                 {
                     cmd.Parameters.AddWithValue("@u", username);
@@ -111,10 +111,10 @@ namespace ahhh
         public static async Task<List<Dictionary<string, object>>> GetMotorcyclesAsync()
         {
             var list = new List<Dictionary<string, object>>();
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand("SELECT * FROM motorcycles ORDER BY id", conn))
+                using (var cmd = new SqliteCommand("SELECT * FROM motorcycles ORDER BY id", conn))
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
@@ -126,10 +126,10 @@ namespace ahhh
 
         public static async Task<bool> AddMotorcycleAsync(string name, string model, decimal dailyRate)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand(
+                using (var cmd = new SqliteCommand(
                     "INSERT INTO motorcycles (name, model, daily_rate, is_available) VALUES (@n, @m, @r, 1)", conn))
                 {
                     cmd.Parameters.AddWithValue("@n", name);
@@ -142,10 +142,10 @@ namespace ahhh
 
         public static async Task<bool> UpdateMotorcycleAsync(int id, string name, string model, decimal dailyRate)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand(
+                using (var cmd = new SqliteCommand(
                     "UPDATE motorcycles SET name=@n, model=@m, daily_rate=@r WHERE id=@id", conn))
                 {
                     cmd.Parameters.AddWithValue("@n", name);
@@ -159,10 +159,10 @@ namespace ahhh
 
         public static async Task<bool> DeleteMotorcycleAsync(int id)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand("DELETE FROM motorcycles WHERE id=@id", conn))
+                using (var cmd = new SqliteCommand("DELETE FROM motorcycles WHERE id=@id", conn))
                 {
                     cmd.Parameters.AddWithValue("@id", id);
                     return await cmd.ExecuteNonQueryAsync() > 0;
@@ -175,10 +175,10 @@ namespace ahhh
         public static async Task<List<Dictionary<string, object>>> GetRentalsAsync()
         {
             var list = new List<Dictionary<string, object>>();
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand("SELECT * FROM rentals ORDER BY rented_at DESC", conn))
+                using (var cmd = new SqliteCommand("SELECT * FROM rentals ORDER BY rented_at DESC", conn))
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
@@ -190,10 +190,10 @@ namespace ahhh
 
         public static async Task<bool> CreateRentalAsync(int motorcycleId, string username)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand(
+                using (var cmd = new SqliteCommand(
                     "INSERT INTO rentals (motorcycle_id, username, status) VALUES (@mid, @u, 'active')", conn))
                 {
                     cmd.Parameters.AddWithValue("@mid", motorcycleId);
@@ -206,10 +206,10 @@ namespace ahhh
 
         public static async Task<bool> ReturnRentalAsync(int rentalId, int motorcycleId)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand(
+                using (var cmd = new SqliteCommand(
                     "UPDATE rentals SET status='returned', returned_at=datetime('now') WHERE id=@id", conn))
                 {
                     cmd.Parameters.AddWithValue("@id", rentalId);
@@ -221,10 +221,10 @@ namespace ahhh
 
         public static async Task<bool> DeleteRentalAsync(int rentalId, int motorcycleId)
         {
-            using (var conn = new SQLiteConnection(ConnStr))
+            using (var conn = new SqliteConnection(ConnStr))
             {
                 await conn.OpenAsync();
-                using (var cmd = new SQLiteCommand("DELETE FROM rentals WHERE id=@id", conn))
+                using (var cmd = new SqliteCommand("DELETE FROM rentals WHERE id=@id", conn))
                 {
                     cmd.Parameters.AddWithValue("@id", rentalId);
                     if (await cmd.ExecuteNonQueryAsync() <= 0) return false;
@@ -235,9 +235,9 @@ namespace ahhh
 
         // ── Private helpers ────────────────────────────────────────────────────
 
-        private static async Task<bool> SetAvailabilityAsync(SQLiteConnection conn, int motorcycleId, bool available)
+        private static async Task<bool> SetAvailabilityAsync(SqliteConnection conn, int motorcycleId, bool available)
         {
-            using (var cmd = new SQLiteCommand(
+            using (var cmd = new SqliteCommand(
                 "UPDATE motorcycles SET is_available=@a WHERE id=@id", conn))
             {
                 cmd.Parameters.AddWithValue("@a", available ? 1 : 0);

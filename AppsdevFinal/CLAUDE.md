@@ -4,18 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Windows Forms motorcycle rental system** built with C# targeting .NET Framework 4.7.2. The solution file is at `motorcycle-rental-system/ahhh/ahhh.slnx` and the project at `motorcycle-rental-system/ahhh/ahhh/ahhh.csproj`.
+This is a **Windows Forms motorcycle rental system** built with C# targeting .NET 8 (`net8.0-windows`). The solution file is at `motorcycle-rental-system/ahhh/ahhh.slnx` and the project at `motorcycle-rental-system/ahhh/ahhh/ahhh.csproj`.
 
 ## Build & Run
 
-Build via MSBuild (from repo root):
+Build via .NET CLI (from repo root):
 ```powershell
-msbuild motorcycle-rental-system\ahhh\ahhh\ahhh.csproj /p:Configuration=Debug
+dotnet build AppsdevFinal\motorcycle-rental-system\ahhh\ahhh\ahhh.csproj
 ```
 
 Run the compiled executable:
 ```powershell
-.\motorcycle-rental-system\ahhh\ahhh\bin\Debug\ahhh.exe
+dotnet run --project AppsdevFinal\motorcycle-rental-system\ahhh\ahhh\ahhh.csproj
 ```
 
 To open and build in Visual Studio 2022, open `motorcycle-rental-system\ahhh\ahhh.slnx`.
@@ -51,7 +51,7 @@ WelcomeForm → RegisterForm → LoginForm → Motors
 
 No setup required. The database file `rental.db` is created automatically in `bin\Debug\` on first launch via `SupabaseService.EnsureDbCreated()`.
 
-NuGet package in use: `System.Data.SQLite` v1.0.119.0.
+NuGet package in use: `Microsoft.Data.Sqlite` v9.0.0.
 
 ## Key Design Constraints
 
